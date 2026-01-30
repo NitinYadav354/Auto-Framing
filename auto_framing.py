@@ -3,7 +3,8 @@ import cv2
 zoomed_2 = False
 zoomed = False
 offset_x, offset_y = 0, 0
-offsetValue = 10
+offsetValue = 2
+tolerance = 20
 
 def move_right(offset_x1, offset_x2, x2):
     if x2 + offsetValue >= framewidth:
@@ -52,14 +53,29 @@ def zoom_1_5x(frame):
 
 
 cap = cv2.VideoCapture(0)
+
 ret, frame = cap.read()
 frameheight, framewidth = frame.shape[:2]
 x1, y1, x2, y2 = 0, 0, framewidth, frameheight
+detector = cv2.FaceDetectorYN.create("face_detection_yunet_2023mar.onnx", "", (framewidth, frameheight))
 while True:
     ret, frame = cap.read()
     if not ret:
         break
+
+    x, y, w, h = 0, 0, 0, 0
+
     frame = cv2.flip(frame, 1)
+    detector.setInputSize((frame.shape[1], frame.shape[0]))
+    _, faces = detector.detect(frame)
+
+    if faces is not None:
+        faces = sorted(faces, key=lambda f: f[2] * f[3], reverse=True)
+        
+        main_face = faces[0]
+    
+        x, y, w, h = map(int, main_face[:4])
+        cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
     key = cv2.waitKey(1) & 0xFF
 
@@ -83,37 +99,46 @@ while True:
         zoom_1_5x_arr = zoom_1_5x(frame)
         x1, y1, x2, y2 = zoom_1_5x_arr[0], zoom_1_5x_arr[1], zoom_1_5x_arr[2], zoom_1_5x_arr[3]
 
+
+    face_center_x = (2*x + w)//2
+    face_center_y = (2*y + h)//2
+    frame_center_x = (x1 + x2)//2
+    frame_center_y = (y1 + y2)//2
+
     
-    if key == ord('d'):
+    if key == ord('d') or face_center_x > frame_center_x + tolerance:
         move_right_arr = move_right(offset_x, offset_x, x2)
         offset_x, offset_x = move_right_arr[0], move_right_arr[1]
 
         
 
-    elif key == ord('a'):
+    elif key == ord('a') or face_center_x < frame_center_x - tolerance:
         move_left_arr = move_left(offset_x, offset_x, x1)
         offset_x, offset_x = move_left_arr[0], move_left_arr[1]
 
     
-    elif key == ord('w'):
+    if key == ord('w') or face_center_y < frame_center_y - tolerance:
         move_up_arr = move_up(offset_y, offset_y, y1)
         offset_y, offset_y = move_up_arr[0], move_up_arr[1]
  
     
-    elif key == ord('s'):
+    elif key == ord('s') or face_center_y > frame_center_y + tolerance:
         move_down_arr = move_down(offset_y, offset_y, y2)
         offset_y, offset_y = move_down_arr[0], move_down_arr[1]
 
     if zoomed or zoomed_2:
         cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
         showFrame = frame[y1:y2, x1:x2]
-        showFrame = cv2.resize(showFrame, (framewidth, frameheight))
+        showFrame = cv2.resize(showFrame, (int(1.4*framewidth), int(1.4*frameheight)))
 
     else:
         showFrame = frame
+        showFrame = cv2.resize(showFrame, (int(1.4*framewidth), int(1.4*frameheight)))
+    
 
     cv2.imshow("Webcam", showFrame)
     if key == ord('q'):
         break
 cap.release()
+
 cv2.destroyAllWindows()
