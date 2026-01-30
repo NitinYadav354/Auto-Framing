@@ -2,22 +2,59 @@ import cv2
 
 zoomed_2 = False
 zoomed = False
-def zoom_2x(frame):
-    framewidth, frameheight = frame.shape[1], frame.shape[0]
+offset_x, offset_y = 0, 0
+offsetValue = 10
 
-    zoomed = frame[frameheight//4: 3*frameheight//4, framewidth//4: 3*framewidth//4]
-    zoomed = cv2.resize(zoomed, (frame.shape[1], frame.shape[0]))
-    return zoomed
+def move_right(offset_x1, offset_x2, x2):
+    if x2 + offsetValue >= framewidth:
+        return [offset_x1 + framewidth - x2, offset_x2 + framewidth - x2]
+    else:
+        return [offset_x1 + offsetValue, offset_x2 + offsetValue]
+
+def move_left(offset_x1, offset_x2, x1):
+    if x1 - offsetValue <= 0:
+        return [offset_x1 - x1, offset_x2 - x1]
+    offset_x1 -= offsetValue
+    offset_x2 -= offsetValue
+    return [offset_x1, offset_x2]
+
+def move_up(offset_y1, offset_y2, y1):
+    if y1 - offsetValue <= 0:
+        return [offset_y1 - y1, offset_y2 - y1]
+    offset_y1 -= offsetValue
+    offset_y2 -= offsetValue
+    return [offset_y1, offset_y2]
+
+def move_down(offset_y1, offset_y2, y2):
+    if y2 + offsetValue >= frameheight:
+        return [offset_y1 + frameheight - y2, offset_y2 + frameheight - y2]
+    offset_y1 += offsetValue
+    offset_y2 += offsetValue
+    return [offset_y1, offset_y2]
+
+def zoom_2x(frame):
+
+    framewidth, frameheight = frame.shape[1], frame.shape[0]
+    x1 = framewidth//4 + offset_x
+    y1 = frameheight//4 + offset_y
+    x2 = 3*framewidth//4 + offset_x
+    y2 = 3*frameheight//4 + offset_y
+    return [x1, y1, x2, y2]
 
 def zoom_1_5x(frame):
     framewidth, frameheight = frame.shape[1], frame.shape[0]
+    x1 = framewidth//6 + offset_x
+    y1 = frameheight//6 + offset_y
+    x2 = 5*framewidth//6 + offset_x
+    y2 = 5*frameheight//6 + offset_y
 
-    zoomed = frame[frameheight//6: 5*frameheight//6, framewidth//6: 5*framewidth//6]
-    zoomed = cv2.resize(zoomed, (frame.shape[1], frame.shape[0]))
-    return zoomed
+    return [x1, y1, x2, y2]
 
 
 cap = cv2.VideoCapture(0)
+ret, frame = cap.read()
+frameheight, framewidth = frame.shape[:2]
+x1, y1, x2, y2 = 0, 0, framewidth, frameheight
 while True:
     ret, frame = cap.read()
     if not ret:
@@ -27,98 +64,56 @@ while True:
     key = cv2.waitKey(1) & 0xFF
 
     if key == ord('1'):
+        offset_x, offset_y = 0, 0
         zoomed = not zoomed
         zoomed_2 = False
     
     if key == ord('2'):
+        offset_x, offset_y = 0, 0
         zoomed_2 = not zoomed_2
         zoomed = False
 
     if zoomed_2:
-        showFrame = zoom_2x(frame) 
+        zoom_2x_arr = zoom_2x(frame)
+        x1, y1, x2, y2 = zoom_2x_arr[0], zoom_2x_arr[1], zoom_2x_arr[2], zoom_2x_arr[3]
+
+
         
     elif zoomed:
-        showFrame = zoom_1_5x(frame)
+        zoom_1_5x_arr = zoom_1_5x(frame)
+        x1, y1, x2, y2 = zoom_1_5x_arr[0], zoom_1_5x_arr[1], zoom_1_5x_arr[2], zoom_1_5x_arr[3]
+
+    
+    if key == ord('d'):
+        move_right_arr = move_right(offset_x, offset_x, x2)
+        offset_x, offset_x = move_right_arr[0], move_right_arr[1]
+
         
+
+    elif key == ord('a'):
+        move_left_arr = move_left(offset_x, offset_x, x1)
+        offset_x, offset_x = move_left_arr[0], move_left_arr[1]
+
+    
+    elif key == ord('w'):
+        move_up_arr = move_up(offset_y, offset_y, y1)
+        offset_y, offset_y = move_up_arr[0], move_up_arr[1]
+ 
+    
+    elif key == ord('s'):
+        move_down_arr = move_down(offset_y, offset_y, y2)
+        offset_y, offset_y = move_down_arr[0], move_down_arr[1]
+
+    if zoomed or zoomed_2:
+        cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+        showFrame = frame[y1:y2, x1:x2]
+        showFrame = cv2.resize(showFrame, (framewidth, frameheight))
+
     else:
         showFrame = frame
-    
+
     cv2.imshow("Webcam", showFrame)
     if key == ord('q'):
         break
-# def left(x1, y1, x2, y2):
-#     x1, y1, x2, y2 = x1-1, y1, x2-1, y2
-#     frame = 
-# import cv2
-
-# face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-
-# cap = cv2.VideoCapture(0)
-# zoom_level = 0.9
-# i = 10
-# while True:
-#     if i == 20:
-#         i = 0
-#     else:
-#         i += 1
-#     ret, frame = cap.read()
-#     frameheight, framewidth = frame.shape[:2]
-#     aspect_ratio = framewidth / frameheight
-#     if not ret:
-#         break
-#     frame = cv2.flip(frame, 1)
-#     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-#     if i> 0:
-#         faces = face_cascade.detectMultiScale(gray, 1.1, 4)
-#         x, y, w, h = faces[0] if len(faces) > 0 else (0, 0, 0, 0)
-#     if w != 0 and h > 0:
-#         cv2.rectangle(frame, (x, y), (x + w, y + h), (200, 200, 200), 2)
-
-#     face_center_x, face_center_y = x + w/2, y + h/2
-
-
-
-#     if (w > 0 and i == 0):
-#         print (i)
-#         x1 = int(max(0, x - w))
-#         y1 = int(max(0, y - h//2))
-#         x2 = int(min(framewidth, x + w*2))
-#         y2 = int(min(frameheight, aspect_ratio * (x2 - x1) + y1))
-
-#         cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-#         zoomed = frame[y1:y2, x1:x2]
-#         zoomed = cv2.resize(zoomed, (int(1.3*framewidth), int(1.3*frameheight)))
-
-
-
-
-#     # if (w > 0):
-#     #     zoom_level = 0.9
-#     #     crop_w = int(zoom_level * framewidth)
-#     #     crop_h = int(crop_w * frameheight / framewidth)
-#     #     x1 = max(0, int(face_center_x - crop_w/2))
-#     #     y1 = max(0, int(face_center_y - crop_h/2))
-#     #     x2 = min(framewidth, x1 + crop_w)
-#     #     y2 = min(frameheight, y1 + crop_h)
-#     #     zoomed = frame[y1:y2, x1:x2]
-#     #     zoomed = cv2.resize(zoomed, (int(1.3*framewidth), int(1.3*frameheight)))
-#     # elif (i == 0 and w >= 100 and w < 200):
-#     #     zoom_level = 0.8
-#     #     crop_w = int(zoom_level * framewidth)
-#     #     crop_h = int(crop_w * frameheight / framewidth)
-#     #     x1 = max(0, int(face_center_x - crop_w/2))
-#     #     y1 = max(0, int(face_center_y - crop_h/2))
-#     #     x2 = min(framewidth, x1 + crop_w)
-#     #     y2 = min(frameheight, y1 + crop_h)
-
-#     #     zoomed = frame[y1:y2, x1:x2]
-#     #     zoomed = cv2.resize(zoomed, (int(1.3*framewidth), int(1.3*frameheight)))
-#     else:
-#         zoomed = cv2.resize(frame, (int(1.3*framewidth), int(1.3*frameheight)))
-#     cv2.imshow("Webcam", zoomed)
-
-#     if cv2.waitKey(1) & 0xFF == ord('q'):
-#         break
-
-# cap.release()
-# cv2.destroyAllWindows()
+cap.release()
+cv2.destroyAllWindows()
